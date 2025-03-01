@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  clients       Client[]
+  projects      Project[]
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model Client {
+  id            String    @id @default(cuid())
+  name          String
+  email         String
+  phone         String?
+  address       String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  projects      Project[]
+  assignedTo    User      @relation(fields: [userId], references: [id])
+  userId        String
+  notes         Note[]
+}
+
+model Project {
+  id            String    @id @default(cuid())
+  name          String
+  description   String?
+  status        ProjectStatus @default(PENDING)
+  startDate     DateTime?
+  endDate       DateTime?
+  budget        Float?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  client        Client    @relation(fields: [clientId], references: [id])
+  clientId      String
+  assignedTo    User      @relation(fields: [userId], references: [id])
+  userId        String
+  materials     Material[]
+  notes         Note[]
+}
+
+enum ProjectStatus {
+  PENDING
+  IN_PROGRESS
+  DESIGN
+  PRODUCTION
+  INSTALLATION
+  COMPLETED
+  CANCELLED
+}
+
+model Material {
+  id            String    @id @default(cuid())
+  name          String
+  quantity      Float
+  unit          String
+  cost          Float
+  project       Project   @relation(fields: [projectId], references: [id])
+  projectId     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Note {
+  id            String    @id @default(cuid())
+  content       String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  client        Client?   @relation(fields: [clientId], references: [id])
+  clientId      String?
+  project       Project?  @relation(fields: [projectId], references: [id])
+  projectId     String?
+}

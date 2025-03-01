@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="200" height="50" viewBox="0 0 200 50" version="1.1" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .text { font: bold 24px sans-serif; fill: white; }
+    .accent { fill: #6366f1; }
+  </style>
+  <rect x="10" y="10" width="30" height="30" rx="5" class="accent"/>
+  <text x="50" y="33" class="text">SignageCRM</text>
+</svg> 
