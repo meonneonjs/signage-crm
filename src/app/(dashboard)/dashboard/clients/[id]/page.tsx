@@ -1,115 +1,99 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { Client } from '@prisma/client'
+import { useCallback, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import { PencilIcon } from "@heroicons/react/24/outline"
-import { getClient, deleteClient } from "@/services/clientService"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function ClientDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+interface PageProps {
+  params: {
+    id: string
+  }
+}
+
+export default function ClientPage({ params }: PageProps) {
   const router = useRouter()
   const { toast } = useToast()
-  const [client, setClient] = useState<any>(null)
+  const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
-  useEffect(() => {
-    loadClient()
-  }, [params.id])
-
-  async function loadClient() {
+  const loadClient = useCallback(async () => {
     try {
-      const data = await getClient(params.id)
+      const response = await fetch(`/api/clients/${params.id}`)
+      if (!response.ok) throw new Error('Failed to load client')
+      const data = await response.json()
       setClient(data)
-    } catch (error) {
-      notFound()
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load client'))
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id])
 
-  async function handleDelete() {
-    if (!confirm("Are you sure you want to delete this client?")) {
-      return
-    }
+  useEffect(() => {
+    loadClient()
+  }, [loadClient])
 
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this client?')) return
+    
+    setIsDeleting(true)
     try {
-      await deleteClient(params.id)
+      const response = await fetch(`/api/clients/${params.id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) throw new Error('Failed to delete client')
       toast({
         title: "Success",
         description: "Client deleted successfully",
       })
-      router.push("/dashboard/clients")
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete client",
-        variant: "destructive",
-      })
+      router.push('/dashboard/clients')
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to delete client'))
+      setIsDeleting(false)
     }
   }
 
-  if (isLoading) {
-    return <div>Loading...</div>
-  }
-
-  if (!client) {
-    notFound()
-  }
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+  if (!client) return <div>Client not found</div>
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">{client.name}</h1>
-        <div className="flex space-x-3">
-          <Link
-            href={`/dashboard/clients/${client.id}/edit`}
-            className="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-medium text-gray-700 hover:bg-gray-50"
+        <div className="space-x-2">
+          <button
+            onClick={() => router.push(`/dashboard/clients/${params.id}/edit`)}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            disabled={isDeleting}
           >
-            <PencilIcon className="h-5 w-5 mr-2" />
             Edit
-          </Link>
+          </button>
           <button
             onClick={handleDelete}
-            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+            disabled={isDeleting}
           >
-            Delete
+            {isDeleting ? 'Deleting...' : 'Delete'}
           </button>
         </div>
       </div>
 
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Client Information
-          </h3>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <h2 className="font-semibold">Contact Information</h2>
+          <p>Email: {client.email}</p>
+          <p>Phone: {client.phone || 'N/A'}</p>
         </div>
-        <div className="border-t border-gray-200">
-          <dl>
-            <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Email</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                {client.email}
-              </dd>
-            </div>
-            <div className="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Phone</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                {client.phone}
-              </dd>
-            </div>
-            <div className="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-              <dt className="text-sm font-medium text-gray-500">Address</dt>
-              <dd className="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0">
-                {client.address}
-              </dd>
-            </div>
-          </dl>
+        <div>
+          <h2 className="font-semibold">Address</h2>
+          <p>{client.address || 'N/A'}</p>
         </div>
       </div>
 

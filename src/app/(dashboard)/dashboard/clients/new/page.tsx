@@ -4,10 +4,18 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import ClientForm from "@/components/clients/ClientForm"
 import { createClient } from "@/services/clientService"
+import { Client } from '@prisma/client'
 
 export default function NewClientPage() {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const emptyClient: Partial<Client> = {
+    name: '',
+    email: '',
+    phone: '',
+    address: ''
+  }
 
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true)
@@ -30,7 +38,7 @@ export default function NewClientPage() {
 
       <div className="bg-white shadow-sm ring-1 ring-gray-900/5 sm:rounded-xl md:col-span-2">
         <div className="px-4 py-6 sm:p-8">
-          <ClientForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <ClientForm client={emptyClient} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
         </div>
       </div>
     </div>

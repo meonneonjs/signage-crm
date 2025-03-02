@@ -1,35 +1,41 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { type Client } from '@/types'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from "next/navigation"
 import { notFound } from "next/navigation"
 import ClientForm from "@/components/clients/ClientForm"
 import { getClient, updateClient } from "@/services/clientService"
 
-export default function EditClientPage({
-  params,
-}: {
-  params: { id: string }
-}) {
+interface PageProps {
+  params: {
+    id: string
+  }
+}
+
+export default function EditClientPage({ params }: PageProps) {
   const router = useRouter()
-  const [client, setClient] = useState<any>(null)
+  const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
 
-  useEffect(() => {
-    loadClient()
-  }, [params.id])
-
-  async function loadClient() {
+  const loadClient = useCallback(async () => {
     try {
-      const data = await getClient(params.id)
+      const response = await fetch(`/api/clients/${params.id}`)
+      if (!response.ok) throw new Error('Failed to load client')
+      const data = await response.json()
       setClient(data)
-    } catch (error) {
-      notFound()
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load client'))
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id])
+
+  useEffect(() => {
+    loadClient()
+  }, [loadClient])
 
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true)
@@ -41,13 +47,9 @@ export default function EditClientPage({
     }
   }
 
-  if (isLoading) {
-    return <div>Loading...</div>
-  }
-
-  if (!client) {
-    notFound()
-  }
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+  if (!client) return <div>Client not found</div>
 
   return (
     <div className="space-y-6">

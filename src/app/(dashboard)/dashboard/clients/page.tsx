@@ -1,34 +1,34 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { Client } from '@prisma/client'
+import { useCallback, useEffect, useState } from 'react'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
-import { Client, getClients, deleteClient } from '@/services/clientService'
+import { getClients, deleteClient } from '@/services/clientService'
 import { useToast } from '@/components/ui/use-toast'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<Error | null>(null)
   const { toast } = useToast()
 
-  useEffect(() => {
-    loadClients()
-  }, [])
-
-  async function loadClients() {
+  const loadClients = useCallback(async () => {
     try {
-      const data = await getClients()
+      const response = await fetch('/api/clients')
+      if (!response.ok) throw new Error('Failed to load clients')
+      const data = await response.json()
       setClients(data)
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load clients',
-        variant: 'destructive',
-      })
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to load clients'))
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    loadClients()
+  }, [loadClients])
 
   async function handleDelete(id: string) {
     if (!confirm('Are you sure you want to delete this client?')) {
@@ -51,9 +51,8 @@ export default function ClientsPage() {
     }
   }
 
-  if (isLoading) {
-    return <div>Loading...</div>
-  }
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
 
   return (
     <div className="space-y-4">
