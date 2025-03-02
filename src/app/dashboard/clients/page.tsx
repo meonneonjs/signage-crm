@@ -1,6 +1,9 @@
 import Link from 'next/link'
+import { getClients } from '@/lib/actions'
 
-export default function ClientsPage() {
+export default async function ClientsPage() {
+  const clients = await getClients()
+
   return (
     <div className="bg-white shadow rounded-lg p-6">
       <div className="sm:flex sm:items-center">
@@ -39,11 +42,28 @@ export default function ClientsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  <tr>
-                    <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6" colSpan={4}>
-                      No clients found.
-                    </td>
-                  </tr>
+                  {clients.length === 0 ? (
+                    <tr>
+                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6" colSpan={4}>
+                        No clients found.
+                      </td>
+                    </tr>
+                  ) : (
+                    clients.map((client) => (
+                      <tr key={client.id}>
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          {client.name}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.email}</td>
+                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.phone}</td>
+                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+                          <Link href={`/dashboard/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900">
+                            Edit
+                          </Link>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
