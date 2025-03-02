@@ -2,5 +2,10 @@
   "version": 2,
   "buildCommand": "npx prisma generate && next build",
   "installCommand": "npm install",
-  "framework": "nextjs"
+  "framework": "nextjs",
+  "functions": {
+    "api/**/*": {
+      "memory": 1024
+    }
+  }
 }
