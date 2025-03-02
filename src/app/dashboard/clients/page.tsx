@@ -1,75 +1,95 @@
-import Link from 'next/link'
-import { getClients } from '@/lib/actions'
+import { prisma } from '@/lib/db'
+import { Title, Text } from '@tremor/react'
+import AddButton from '@/components/AddButton'
+import { ProjectStatus } from '@prisma/client'
+import { ClientWithStats } from './types'
+import ClientMetrics from './ClientMetrics'
+import ClientAnalytics from './ClientAnalytics'
+
+export const dynamic = 'force-dynamic'
+
+async function getClients(): Promise<ClientWithStats[]> {
+  const clients = await prisma.client.findMany({
+    include: {
+      projects: {
+        select: {
+          id: true,
+          status: true,
+          budget: true,
+          createdAt: true,
+        },
+      },
+      _count: {
+        select: {
+          projects: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  })
+  return clients
+}
+
+async function getClientStats() {
+  const totalClients = await prisma.client.count()
+  const activeClients = await prisma.client.count({
+    where: {
+      projects: {
+        some: {
+          status: 'IN_PROGRESS' as ProjectStatus
+        }
+      }
+    }
+  })
+  const totalRevenue = await prisma.project.aggregate({
+    _sum: {
+      budget: true
+    },
+    where: {
+      status: 'COMPLETED' as ProjectStatus
+    }
+  })
+  
+  return {
+    totalClients,
+    activeClients,
+    totalRevenue: totalRevenue._sum?.budget || 0
+  }
+}
 
 export default async function ClientsPage() {
-  const clients = await getClients()
+  const [clients, stats] = await Promise.all([getClients(), getClientStats()])
+
+  // Calculate client engagement metrics
+  const clientEngagement = clients.map(client => ({
+    name: client.name,
+    engagement: client._count.projects * 2
+  })).sort((a, b) => b.engagement - a.engagement).slice(0, 5)
+
+  // Calculate revenue by client
+  const revenueByClient = clients.map(client => ({
+    name: client.name,
+    revenue: client.projects.reduce((sum: number, project) => sum + (project.budget || 0), 0)
+  })).sort((a, b) => b.revenue - a.revenue).slice(0, 5)
 
   return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Clients</h1>
-          <p className="mt-2 text-sm text-gray-700">A list of all clients in your account.</p>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <Title>Clients</Title>
+          <Text>Manage your client relationships and track engagement</Text>
         </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
-          <Link
-            href="/dashboard/clients/new"
-            className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:w-auto"
-          >
-            Add client
-          </Link>
-        </div>
+        <AddButton href="/dashboard/clients/new">Add Client</AddButton>
       </div>
-      <div className="mt-8 flex flex-col">
-        <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-          <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-              <table className="min-w-full divide-y divide-gray-300">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                      Name
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Email
-                    </th>
-                    <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                      Phone
-                    </th>
-                    <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                      <span className="sr-only">Edit</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {clients.length === 0 ? (
-                    <tr>
-                      <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm text-gray-500 sm:pl-6" colSpan={4}>
-                        No clients found.
-                      </td>
-                    </tr>
-                  ) : (
-                    clients.map((client) => (
-                      <tr key={client.id}>
-                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                          {client.name}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.email}</td>
-                        <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">{client.phone}</td>
-                        <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                          <Link href={`/dashboard/clients/${client.id}`} className="text-indigo-600 hover:text-indigo-900">
-                            Edit
-                          </Link>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
+
+      <ClientMetrics stats={stats} clients={clients} />
+      <ClientAnalytics 
+        clients={clients}
+        clientEngagement={clientEngagement}
+        revenueByClient={revenueByClient}
+      />
     </div>
   )
 } 

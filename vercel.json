@@ -1,5 +1,12 @@
 {
-  "version": 2,
-  "buildCommand": "npx prisma generate && next build",
-  "framework": "nextjs"
+  "buildCommand": "prisma generate && next build",
+  "devCommand": "next dev",
+  "installCommand": "npm install",
+  "framework": "nextjs",
+  "regions": ["sfo1"],
+  "env": {
+    "POSTGRES_PRISMA_URL": "@postgres-prisma-url",
+    "POSTGRES_URL_NON_POOLING": "@postgres-url-non-pooling",
+    "NEXT_PUBLIC_VERCEL_URL": "${VERCEL_URL}"
+  }
 }

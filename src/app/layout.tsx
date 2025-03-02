@@ -1,28 +1,38 @@
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import './globals.css'
-import { Sidebar } from '@/components/Sidebar'
+import './globals.css';
+import { Inter } from 'next/font/google';
+import { classNames } from '@/lib/utils';
+import { ClerkProvider } from '@clerk/nextjs';
+import type { Metadata } from 'next';
+import { Suspense } from 'react';
+import { LoadingScreen } from '@/components/LoadingScreen';
+import { StartupScreen } from '@/components/StartupScreen';
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Signage CRM',
-  description: 'A CRM for managing signage clients and projects',
-}
+  description: 'Modern CRM for signage business management',
+};
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
-        <div className="flex">
-          <Sidebar />
-          <div className="flex-1 p-8">{children}</div>
-        </div>
-      </body>
-    </html>
-  )
+    <ClerkProvider>
+      <html lang="en" className="h-full bg-gray-50">
+        <body 
+          className={classNames("h-full antialiased", inter.className)}
+          data-new-gr-c-s-check-loaded=""
+          data-gr-ext-installed=""
+        >
+          <StartupScreen />
+          <Suspense fallback={<LoadingScreen />}>
+            {children}
+          </Suspense>
+        </body>
+      </html>
+    </ClerkProvider>
+  );
 }
