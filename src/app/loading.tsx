@@ -1,5 +1,5 @@
-import { LoadingScreen } from '@/components/LoadingScreen';
+import { BrandLoadingScreen } from '@/components/BrandLoadingScreen';
 
 export default function Loading() {
-  return <LoadingScreen />;
+  return <BrandLoadingScreen />;
 } 

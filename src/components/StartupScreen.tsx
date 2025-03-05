@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 
 export function StartupScreen() {
   const [show, setShow] = useState(true);
@@ -9,7 +10,7 @@ export function StartupScreen() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShow(false);
-    }, 2000); // Show for 2 seconds
+    }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
@@ -21,87 +22,106 @@ export function StartupScreen() {
           initial={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.5 }}
-          className="fixed inset-0 z-50 bg-gradient-to-br from-indigo-900 to-blue-900 flex items-center justify-center"
+          className="fixed inset-0 z-[100] bg-gradient-to-b from-white to-gray-50 flex flex-col items-center justify-center"
         >
           <div className="text-center">
+            {/* Logo Animation */}
             <motion.div
-              initial={{ scale: 0.5, opacity: 0 }}
+              initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ duration: 0.5 }}
-              className="mb-8"
+              className="relative"
             >
-              <div className="w-32 h-32 relative mx-auto">
-                {/* Animated logo elements */}
+              {/* Brand Logo */}
+              <div className="flex flex-col items-center gap-6">
                 <motion.div
-                  className="absolute inset-0 border-8 border-white rounded-full"
-                  animate={{
-                    rotate: 360,
-                    scale: [1, 1.2, 1],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    ease: "easeInOut",
-                    times: [0, 0.5, 1],
-                  }}
-                />
-                <motion.div
-                  className="absolute inset-4 border-8 border-blue-400 rounded-full"
-                  animate={{
-                    rotate: -360,
-                    scale: [1, 0.8, 1],
-                  }}
-                  transition={{
-                    duration: 1.5,
-                    ease: "easeInOut",
-                    times: [0, 0.5, 1],
-                  }}
-                />
-                <motion.div
-                  className="absolute inset-0 w-full h-full flex items-center justify-center"
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.3, duration: 0.5 }}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                  className="w-20 h-20"
                 >
-                  <div className="text-white text-4xl font-bold">S</div>
+                  <Image
+                    src="/brand/atellierCRM icon only.svg"
+                    alt="AtellierCRM"
+                    width={80}
+                    height={80}
+                    className="w-full h-full"
+                  />
+                </motion.div>
+                
+                <motion.div
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  className="h-8"
+                >
+                  <Image
+                    src="/brand/AtellierCRM logo without icon.svg"
+                    alt="AtellierCRM"
+                    width={200}
+                    height={32}
+                    className="h-full w-auto"
+                  />
                 </motion.div>
               </div>
             </motion.div>
             
-            <motion.h1
+            {/* Loading Indicator */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6, duration: 0.4 }}
+              className="mt-12"
+            >
+              <div className="flex justify-center gap-2">
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 1, 0.3]
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    delay: 0
+                  }}
+                  className="w-2 h-2 bg-primary-600 rounded-full"
+                />
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 1, 0.3]
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    delay: 0.2
+                  }}
+                  className="w-2 h-2 bg-primary-600 rounded-full"
+                />
+                <motion.div
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.3, 1, 0.3]
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    delay: 0.4
+                  }}
+                  className="w-2 h-2 bg-primary-600 rounded-full"
+                />
+              </div>
+            </motion.div>
+
+            {/* Tagline */}
+            <motion.p
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="text-4xl font-bold text-white mb-4"
+              transition={{ delay: 0.8, duration: 0.4 }}
+              className="mt-8 text-gray-600 text-lg font-medium tracking-wide"
             >
-              Signage CRM
-            </motion.h1>
-            
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              className="text-blue-200"
-            >
-              <motion.div 
-                className="flex justify-center gap-1.5"
-              >
-                {[...Array(3)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="w-2 h-2 bg-white rounded-full"
-                    animate={{
-                      y: [-3, 3, -3],
-                      opacity: [1, 0.5, 1],
-                    }}
-                    transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      delay: i * 0.2,
-                    }}
-                  />
-                ))}
-              </motion.div>
-            </motion.div>
+              Business Management for Creative Professionals
+            </motion.p>
           </div>
         </motion.div>
       )}

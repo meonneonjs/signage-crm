@@ -71,49 +71,65 @@ model LeadActivity {
 }
 
 model User {
-  id               String                 @id @default(cuid())
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  email            String                 @unique
-  name             String?
-  role             UserRole               @default(SALES_REP)
-  avatar           String?
-  phoneNumber      String?
-  title            String?
-  department       String?
-  salesTarget      Float?
-  currentSales     Float?
-  conversionRate   Float?
-  territory        String?
-  specialty        String?
-  status           String?
-  workingHours     Json?
-  lastLogin        DateTime?
-  isActive         Boolean                @default(true)
-  managerId        String?
-  clients          Client[]
-  clientNotes      ClientNote[]
-  commissions      Commission[]
-  payments         CommissionPayment[]
-  deals            Deal[]
-  dealActivities   DealActivity[]
-  documents        Document[]
-  assignedLeads    Lead[]                 @relation("AssignedLeads")
-  activities       LeadActivity[]
-  userActivities   Activity[]    @relation("UserActivities")
-  projectTasks     ProjectTask[]
-  projectTeam      ProjectTeamMember[]
-  tasks            Task[]
-  reportsTo        User?                  @relation("TeamHierarchy", fields: [managerId], references: [id])
-  team             User[]                 @relation("TeamHierarchy")
-  installationJobs InstallationSchedule[] @relation("InstallationScheduleToUser")
-  communications   Communication[]
-  projectComms     ProjectCommunication[] @relation("ProjectCommunicationToUser")
-  integration      UserIntegration?
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  mfaEnabled    Boolean   @default(false)
+  mfaSecret     String?
+  mfaBackupCodes String[]
+  role          Role      @relation(fields: [roleId], references: [id])
+  roleId        String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  accounts      Account[]
+  sessions      Session[]
 
+  // Activity relations
+  activities      LeadActivity[]
+  userActivities  Activity[]      @relation("UserActivities")
+
+  // Project relations
+  projectTasks    ProjectTask[]
+  projectTeam     ProjectTeamMember[]
+  projectComms    ProjectCommunication[] @relation("ProjectCommunicationToUser")
+
+  // Lead and Deal relations
+  assignedLeads   Lead[]    @relation("AssignedLeads")
+  deals           Deal[]
+  dealActivities  DealActivity[]
+
+  // Client relations
+  clients         Client[]
+  clientNotes     ClientNote[]
+  communications  Communication[]
+
+  // Financial relations
+  commissions     Commission[]
+  payments        CommissionPayment[]
+
+  // Document relations
+  documents       Document[]
+
+  // Installation relations
+  installationJobs InstallationSchedule[] @relation("InstallationScheduleToUser")
+
+  // Task relations
+  tasks           Task[]
+
+  // Marketing relations
+  assignedCampaigns Campaign[]
+  assignedMessages  Message[]
+  assignedMarketingCampaigns MarketingCampaign[] @relation("AssignedCampaigns")
+  assignedAdMessages AdMessage[] @relation("AssignedMessages")
+
+  // Integration relations
+  integration     UserIntegration?
+
+  @@index([email])
   @@index([role])
-  @@index([territory])
-  @@index([managerId])
 }
 
 model Client {
@@ -311,18 +327,63 @@ model CommissionPayment {
 }
 
 model Campaign {
-  id           String                @id @default(cuid())
-  createdAt    DateTime              @default(now())
-  updatedAt    DateTime              @updatedAt
-  name         String
-  description  String?
-  startDate    DateTime
-  endDate      DateTime?
-  status       CampaignStatus        @default(ACTIVE)
-  type         String
-  budget       Float?
-  metrics      CampaignMetrics?
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  platform    MarketingPlatform
+  type        MarketingType
+  status      CampaignStatus
+  budget      Float
+  startDate   DateTime
+  endDate     DateTime?
+  metrics     CampaignMetrics?
+  messages    Message[]
   participants CampaignParticipant[]
+  assignedToId String?
+  assignedTo   User?     @relation(fields: [assignedToId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([platform])
+  @@index([status])
+  @@index([type])
+  @@index([assignedToId])
+}
+
+model CampaignMetrics {
+  id           String   @id @default(cuid())
+  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignId   String   @unique
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  conversions  Int      @default(0)
+  spend        Float    @default(0)
+  revenue      Float    @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+model Message {
+  id          String      @id @default(cuid())
+  senderName  String
+  senderEmail String
+  content     String      @db.Text
+  platform    MarketingPlatform
+  status      MessageStatus
+  response    String?     @db.Text
+  campaign    Campaign?   @relation(fields: [campaignId], references: [id])
+  campaignId  String?
+  assignedToId String?
+  assignedTo   User?      @relation(fields: [assignedToId], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([platform])
+  @@index([status])
+  @@index([campaignId])
+  @@index([assignedToId])
 }
 
 model CampaignParticipant {
@@ -335,19 +396,6 @@ model CampaignParticipant {
   lead       Lead     @relation(fields: [leadId], references: [id])
 
   @@unique([campaignId, leadId])
-}
-
-model CampaignMetrics {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  campaignId  String   @unique
-  impressions Int      @default(0)
-  clicks      Int      @default(0)
-  conversions Int      @default(0)
-  revenue     Float    @default(0)
-  roi         Float    @default(0)
-  campaign    Campaign @relation(fields: [campaignId], references: [id])
 }
 
 model ProjectMilestone {
@@ -421,31 +469,101 @@ model Document {
 model SignageSpecification {
   id               String           @id @default(cuid())
   createdAt        DateTime         @default(now())
-  updatedAt        DateTime        @updatedAt
+  updatedAt        DateTime         @updatedAt
+  
+  // Basic Specifications
   type             SignageType
+  name             String
+  description      String?          @db.Text
+  
+  // Dimensions
   width            Float
   height           Float
   depth            Float?
   unit             String           @default("inches")
+  weight           Float?
   doubleSided      Boolean          @default(false)
+  
+  // Materials
   primaryMaterial  MaterialType
   backingMaterial  MaterialType?
-  printingMethod   PrintingMethod
   finishType       String?
+  
+  // Printing & Production
+  printingMethod   PrintingMethod
+  resolution       String?          // e.g., "1920x1080", "P10", "P6"
+  pixelPitch       Float?           // For LED displays
+  brightness       Int?             // In nits
+  refreshRate      Int?             // In Hz
+  colorProfile     String?
+  
+  // Installation
   installationType InstallationType
   mountingHeight   Float?
+  mountingAngle    Float?
+  clearanceNeeded  Float?
+  
+  // Power & Electronics
   powerRequired    Boolean          @default(false)
+  voltageRequired  Float?           // In volts
+  powerConsumption Float?           // In watts
+  controlSystem    String?          // e.g., "DMX", "WiFi", "RF"
+  
+  // Environmental
   outdoorRated     Boolean          @default(false)
+  ipRating         String?          // e.g., "IP65", "IP67"
+  operatingTemp    Json?            // { min: number, max: number }
+  windLoadRating   Float?           // In mph
+  
+  // Illumination
   illuminated      Boolean          @default(false)
-  illuminationType String?
+  illuminationType String?          // e.g., "Front-lit", "Back-lit", "Edge-lit"
+  colorTemperature Int?             // In Kelvin
+  
+  // Certification & Compliance
+  certifications   String[]         // e.g., ["UL", "CE", "FCC"]
+  warrantyPeriod   Int?             // In months
+  
+  // Design & Approval
   designFiles      String[]
   proofApproved    Boolean          @default(false)
   proofApprovedAt  DateTime?
   proofApprovedBy  String?
+  
+  // Maintenance
+  maintenanceInterval Int?          // In months
+  cleaningInstructions String?      @db.Text
+  replacementParts    Json?         // Array of required replacement parts
+  
+  // Relationships
   projectId        String
   project          Project          @relation(fields: [projectId], references: [id])
+  materialInventory MaterialInventory[]
 
   @@index([projectId])
+  @@index([type])
+  @@index([primaryMaterial])
+}
+
+model MaterialInventory {
+  id                    String               @id @default(cuid())
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  materialType          MaterialType
+  name                  String
+  description           String?              @db.Text
+  quantity              Float
+  unit                  String               // e.g., "sqft", "pieces", "meters"
+  minimumStock          Float
+  reorderPoint          Float
+  cost                  Float
+  supplier              String?
+  leadTime             Int?                 // In days
+  location             String?
+  specifications       SignageSpecification[] // Many-to-many relationship
+  
+  @@index([materialType])
+  @@index([quantity])
 }
 
 model ProductionSchedule {
@@ -769,6 +887,9 @@ enum LeadScore {
 }
 
 enum SignageType {
+  MONOCHROME_STANDARD
+  RGB_LED
+  RAINBOW_LED
   INDOOR
   OUTDOOR
   VEHICLE_WRAP
@@ -782,17 +903,31 @@ enum SignageType {
 }
 
 enum MaterialType {
-  VINYL
+  // Backing Materials
+  ALUMINUM_COMPOSITE
   ACRYLIC
   ALUMINUM
   FOAM_BOARD
   CORRUGATED_PLASTIC
   FABRIC
-  LED
   GLASS
   WOOD
-  METAL
-  PLASTIC
+  STEEL
+  PVC
+  DIBOND
+  
+  // LED Types
+  LED_SMD
+  LED_THT
+  LED_COB
+  LED_MATRIX
+  
+  // Special Materials
+  REFLECTIVE_VINYL
+  TRANSLUCENT_VINYL
+  PERFORATED_VINYL
+  ANTI_GRAFFITI_LAMINATE
+  PHOTOLUMINESCENT
   OTHER
 }
 
@@ -857,20 +992,23 @@ enum ExpenseCategory {
 
 enum UserRole {
   ADMIN
+  USER
+  MANAGER
   SALES_REP
-  PROJECT_MANAGER
+  MARKETING
   DESIGNER
   INSTALLER
+  SUPPORT
+  TEAM_LEADER
   ACCOUNTANT
-  MARKETING
 }
 
 enum CampaignStatus {
-  PLANNED
+  DRAFT
   ACTIVE
   PAUSED
   COMPLETED
-  CANCELLED
+  ARCHIVED
 }
 
 enum DesignStatus {
@@ -1058,12 +1196,243 @@ enum ProposalStatus {
 
 model Activity {
   id          String   @id @default(cuid())
-  type        String   // PROJECT_CREATED, TASK_COMPLETED, etc.
-  description String          @db.VarChar(500)
-  createdAt   DateTime @default(now())
+  type        String
   userId      String
+  userName    String
+  entityId    String
+  entityType  String
+  description String
+  metadata    Json?
+  importance  String   @default("medium")
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
   user        User     @relation("UserActivities", fields: [userId], references: [id])
 
-  @@index([createdAt, type])
   @@index([userId])
+  @@index([entityId])
+  @@index([entityType])
+  @@index([createdAt])
+  @@index([importance])
+  @@index([type])
+}
+
+model MarketingCampaign {
+  id               String             @id @default(cuid())
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  name             String
+  description      String?            @db.Text
+  type             MarketingType
+  status           CampaignStatus
+  startDate        DateTime
+  endDate          DateTime?
+  budget           Float
+  actualSpend      Float              @default(0)
+  platform         MarketingPlatform
+  targetAudience   Json?              // Audience targeting criteria
+  goals            String[]           // Campaign objectives
+  tags             String[]
+  metrics          MarketingMetrics?
+  content          MarketingContent[]
+  adSets           AdSet[]
+  messages         AdMessage[]
+  assignedToId     String?
+  assignedTo       User?              @relation("AssignedCampaigns", fields: [assignedToId], references: [id])
+
+  @@index([status])
+  @@index([platform])
+  @@index([assignedToId])
+}
+
+model MarketingMetrics {
+  id                String           @id @default(cuid())
+  campaignId        String           @unique
+  campaign          MarketingCampaign @relation(fields: [campaignId], references: [id])
+  impressions       Int              @default(0)
+  clicks            Int              @default(0)
+  conversions       Int              @default(0)
+  reach             Int              @default(0)
+  engagement        Int              @default(0)
+  spend             Float            @default(0)
+  cpc               Float?           // Cost per click
+  cpm               Float?           // Cost per thousand impressions
+  ctr               Float?           // Click-through rate
+  roas             Float?           // Return on ad spend
+  lastUpdated       DateTime         @default(now())
+  
+  @@index([campaignId])
+}
+
+model MarketingContent {
+  id               String           @id @default(cuid())
+  campaignId       String
+  campaign         MarketingCampaign @relation(fields: [campaignId], references: [id])
+  type             ContentType
+  title            String
+  description      String?          @db.Text
+  mediaUrl         String?
+  callToAction     String?
+  landingPage      String?
+  status           ContentStatus    @default(DRAFT)
+  performance      Json?            // Performance metrics for this content
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([campaignId])
+  @@index([type])
+  @@index([status])
+}
+
+model AdSet {
+  id               String           @id @default(cuid())
+  campaignId       String
+  campaign         MarketingCampaign @relation(fields: [campaignId], references: [id])
+  name             String
+  status           AdSetStatus
+  budget           Float
+  startDate        DateTime
+  endDate          DateTime?
+  targeting        Json             // Detailed targeting options
+  placements       String[]         // Ad placement locations
+  bidStrategy      String?
+  ads              Ad[]
+  
+  @@index([campaignId])
+  @@index([status])
+}
+
+model Ad {
+  id               String           @id @default(cuid())
+  adSetId          String
+  adSet            AdSet           @relation(fields: [adSetId], references: [id])
+  name             String
+  status           AdStatus
+  preview          String?         // Ad preview URL
+  mediaUrls        String[]        // Array of media URLs
+  headline         String
+  primaryText      String?         @db.Text
+  description      String?         @db.Text
+  callToAction     String?
+  destinationUrl   String?
+  metrics          Json?           // Ad-level metrics
+  
+  @@index([adSetId])
+  @@index([status])
+}
+
+model AdMessage {
+  id               String           @id @default(cuid())
+  campaignId       String
+  campaign         MarketingCampaign @relation(fields: [campaignId], references: [id])
+  platform         MarketingPlatform
+  senderId         String          // Social media user ID
+  senderName       String
+  message          String          @db.Text
+  receivedAt       DateTime        @default(now())
+  status           MessageStatus   @default(NEW)
+  assignedToId     String?
+  assignedTo       User?           @relation("AssignedMessages", fields: [assignedToId], references: [id])
+  response         String?         @db.Text
+  respondedAt      DateTime?
+  metadata         Json?           // Additional platform-specific data
+
+  @@index([campaignId])
+  @@index([status])
+  @@index([assignedToId])
+  @@index([platform])
+}
+
+enum MarketingType {
+  DISPLAY_AD
+  SEARCH_AD
+  SOCIAL_AD
+  VIDEO_AD
+  EMAIL_CAMPAIGN
+  CONTENT_MARKETING
+  INFLUENCER_CAMPAIGN
+  OTHER
+}
+
+enum MarketingPlatform {
+  META
+  GOOGLE
+  LINKEDIN
+  TWITTER
+  TIKTOK
+  INSTAGRAM
+  YOUTUBE
+  EMAIL
+  OTHER
+}
+
+enum ContentType {
+  IMAGE
+  VIDEO
+  CAROUSEL
+  STORY
+  REEL
+  TEXT
+  HTML
+}
+
+enum ContentStatus {
+  DRAFT
+  REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AdSetStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum AdStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  REJECTED
+  ARCHIVED
+}
+
+enum MessageStatus {
+  NEW
+  IN_PROGRESS
+  RESPONDED
+  CLOSED
+  SPAM
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions Permission[]
+  users       User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  roles       Role[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model PerformanceMetric {
+  id        String   @id @default(cuid())
+  path      String
+  query     Json
+  metrics   Json
+  timestamp DateTime @default(now())
+
+  @@index([timestamp])
+  @@index([path])
 }

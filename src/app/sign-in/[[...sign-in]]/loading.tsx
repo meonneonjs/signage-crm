@@ -1,7 +1,7 @@
 'use client';
 
-import { LoadingScreen } from '@/components/LoadingScreen';
+import { BrandLoadingScreen } from '@/components/BrandLoadingScreen';
 
 export default function SignInLoading() {
-  return <LoadingScreen />;
+  return <BrandLoadingScreen />;
 } 

@@ -17,11 +17,11 @@ interface RecentProjectsProps {
   projects: Project[];
 }
 
-const statusColors = {
-  PENDING: 'yellow',
-  IN_PROGRESS: 'blue',
-  COMPLETED: 'green',
-  CANCELLED: 'red',
+const statusColorMap = {
+  'In Progress': 'bg-status-warning text-status-warning-foreground',
+  'Completed': 'bg-status-success text-status-success-foreground',
+  'On Hold': 'bg-status-error text-status-error-foreground',
+  'Not Started': 'bg-status-info text-status-info-foreground'
 } as const;
 
 export function RecentProjects({ projects }: RecentProjectsProps) {
@@ -42,7 +42,7 @@ export function RecentProjects({ projects }: RecentProjectsProps) {
                     {project.client.name}
                   </Text>
                   <span className="text-gray-300">•</span>
-                  <Badge color={statusColors[project.status as keyof typeof statusColors]}>
+                  <Badge color={statusColorMap[project.status as keyof typeof statusColorMap]}>
                     {project.status.replace('_', ' ')}
                   </Badge>
                 </div>

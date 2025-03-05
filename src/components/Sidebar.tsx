@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { HomeIcon, UsersIcon, FolderIcon, DocumentTextIcon, CheckCircleIcon, CalendarIcon, ChartBarIcon, CogIcon } from '@heroicons/react/24/outline'
+import { cn } from '@/lib/utils'
+import { BrandLogo } from './BrandLogo'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
@@ -15,7 +17,9 @@ const navigation = [
 export function Sidebar() {
   return (
     <div className="w-64 h-screen bg-gray-800 text-white p-6">
-      <h1 className="text-2xl font-bold mb-8">Signage CRM</h1>
+      <div className="mb-8">
+        <BrandLogo variant="full" />
+      </div>
       <nav>
         <ul className="space-y-4">
           <li>
