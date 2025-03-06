@@ -48,12 +48,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Client } from '@/lib/mockData';
 import { TaskDialog } from './components/TaskDialog';
 import { ProjectDialog } from './components/ProjectDialog';
 import { MeetingDialog } from './components/MeetingDialog';
 import ClientProjects from './_components/ClientProjects';
+import { ClientInvoices } from '../_components/ClientInvoices';
 
 interface EditableFieldProps {
   value: string;
@@ -114,8 +115,10 @@ function EditableField({ value, onSave, label, type = 'text' }: EditableFieldPro
   );
 }
 
-export default function ClientDetailPage({ params }: { params: { id: string } }) {
+export default function ClientDetailPage() {
   const router = useRouter();
+  const params = useParams();
+  const clientId = params.id as string;
   const [activeTab, setActiveTab] = useState('overview');
   const { currentClient, isLoading, error, fetchClient, updateClient, addProject, addTask, addCommunication } = useClientStore();
   const [mounted, setMounted] = useState(false);
@@ -126,9 +129,9 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
   useEffect(() => {
     if (mounted) {
-      fetchClient(params.id);
+      fetchClient(clientId);
     }
-  }, [params.id, mounted, fetchClient]);
+  }, [clientId, mounted, fetchClient]);
 
   if (!mounted) {
     return null;
@@ -163,7 +166,7 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   }
 
   const handleUpdateField = (field: keyof Client, value: string) => {
-    updateClient(currentClient.id, { [field]: value });
+    updateClient(clientId, { [field]: value });
   };
 
   const renderCommunicationsTab = () => (
@@ -172,9 +175,9 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
         <h3 className="text-lg font-semibold">Communications History</h3>
         <div className="flex gap-2">
           <MeetingDialog 
-            clientId={currentClient.id} 
+            clientId={clientId} 
             onMeetingScheduled={(meeting) => {
-              addCommunication(currentClient.id, {
+              addCommunication(clientId, {
                 type: 'meeting',
                 subject: meeting.title,
                 content: meeting.description,
@@ -273,14 +276,14 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Projects</h3>
         <ProjectDialog 
-          clientId={currentClient.id} 
+          clientId={clientId} 
           onProjectAdded={(project) => {
-            addProject(currentClient.id, project);
+            addProject(clientId, project);
           }} 
         />
       </div>
       <div className="grid grid-cols-1 gap-4">
-        <ClientProjects clientId={currentClient.id} />
+        <ClientProjects clientId={clientId} />
       </div>
     </div>
   );
@@ -324,9 +327,9 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold">Tasks</h3>
         <TaskDialog 
-          clientId={currentClient.id} 
+          clientId={clientId} 
           onTaskAdded={(task) => {
-            addTask(currentClient.id, task);
+            addTask(clientId, task);
           }} 
         />
       </div>
@@ -442,30 +445,10 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
   );
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-start">
-        <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarFallback className="text-lg">{currentClient.name.substring(0, 2)}</AvatarFallback>
-          </Avatar>
-          <div>
-            <EditableField
-              value={currentClient.name}
-              onSave={(value) => handleUpdateField('name', value)}
-            />
-            <div className="flex items-center gap-2 text-gray-500">
-              <EditableField
-                value={currentClient.company}
-                onSave={(value) => handleUpdateField('company', value)}
-              />
-              <Badge variant={currentClient.status === 'active' ? 'default' : 'secondary'}>
-                {currentClient.status}
-              </Badge>
-            </div>
-          </div>
-        </div>
-        
-        <ClientActions clientId={params.id} />
+    <div className="space-y-6 p-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Client Details</h1>
+        <p className="text-muted-foreground">View and manage client information.</p>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -478,9 +461,35 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
           <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                <AvatarFallback className="text-lg">{currentClient.name.substring(0, 2)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <EditableField
+                  value={currentClient.name}
+                  onSave={(value) => handleUpdateField('name', value)}
+                />
+                <div className="flex items-center gap-2 text-gray-500">
+                  <EditableField
+                    value={currentClient.company}
+                    onSave={(value) => handleUpdateField('company', value)}
+                  />
+                  <Badge variant={currentClient.status === 'active' ? 'default' : 'secondary'}>
+                    {currentClient.status}
+                  </Badge>
+                </div>
+              </div>
+            </div>
+            
+            <ClientActions clientId={clientId} />
+          </div>
+
           <div className="grid grid-cols-3 gap-4">
             <Card className="p-4">
               <h3 className="font-semibold mb-4">Contact Information</h3>
@@ -626,6 +635,10 @@ export default function ClientDetailPage({ params }: { params: { id: string } })
 
         <TabsContent value="settings">
           {renderSettingsTab()}
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <ClientInvoices clientId={clientId} />
         </TabsContent>
       </Tabs>
     </div>

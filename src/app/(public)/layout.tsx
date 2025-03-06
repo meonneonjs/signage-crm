@@ -86,13 +86,13 @@ export default function PublicLayout({
                 className="bg-blue-600 hover:bg-blue-700 text-white flex items-center"
                 onClick={() => {
                   if (isSignedIn) {
-                    window.location.href = '/dashboard';
+                    window.location.href = '/crm';
                   } else {
                     openSignIn();
                   }
                 }}
               >
-                Access Dashboard
+                Access CRM
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </div>
@@ -136,14 +136,14 @@ export default function PublicLayout({
                   className="bg-blue-600 hover:bg-blue-700 text-white w-full justify-center"
                   onClick={() => {
                     if (isSignedIn) {
-                      window.location.href = '/dashboard';
+                      window.location.href = '/crm';
                     } else {
                       openSignIn();
                     }
                     setMobileMenuOpen(false);
                   }}
                 >
-                  Access Dashboard
+                  Access CRM
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </nav>

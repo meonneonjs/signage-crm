@@ -5,34 +5,29 @@ import { Suspense } from 'react';
 import { BrandLoadingScreen } from '@/components/BrandLoadingScreen';
 import { AppShell } from '@/components/app/AppShell';
 import { AppLayoutClient } from '@/components/app/AppLayoutClient';
-import { PermissionProviderClient } from '@/components/auth/PermissionProviderClient';
-import { UserRole } from '@/types/roles';
 
 export const metadata: Metadata = {
   title: {
-    template: '%s | AtellierCRM Dashboard',
-    default: 'Dashboard | AtellierCRM'
+    template: '%s | AtellierCRM',
+    default: 'CRM Dashboard | AtellierCRM'
   },
   description: 'AtellierCRM Dashboard - Manage your creative business',
 };
 
-export default async function AppLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { userId } = auth();
+  try {
+    const { userId, sessionId } = auth();
 
-  if (!userId) {
-    redirect('/sign-in');
-  }
+    // Only check for authentication, no role check
+    if (!userId || !sessionId) {
+      redirect('/sign-in');
+    }
 
-  // For demo purposes, we'll use a hardcoded user role
-  // In a real application, this would come from your auth system
-  const userRole: UserRole = 'admin';
-
-  return (
-    <PermissionProviderClient userRole={userRole}>
+    return (
       <AppShell>
         <AppLayoutClient>
           <Suspense fallback={<BrandLoadingScreen />}>
@@ -40,6 +35,9 @@ export default async function AppLayout({
           </Suspense>
         </AppLayoutClient>
       </AppShell>
-    </PermissionProviderClient>
-  );
+    );
+  } catch (error) {
+    console.error('Authentication error:', error);
+    redirect('/sign-in');
+  }
 } 

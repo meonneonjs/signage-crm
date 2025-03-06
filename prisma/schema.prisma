@@ -7,6 +7,194 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id             String    @id @default(cuid())
+  name           String?
+  email          String?   @unique
+  emailVerified  DateTime?
+  image          String?
+  password       String?
+  role           UserRole  @default(client)
+  organizationId String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  accounts     Account[]
+  sessions     Session[]
+  designs      Design[]    @relation("SubmittedDesigns")
+  comments     Comment[]
+  assignedLeads Lead[] @relation("AssignedLeads")
+  leadActivities LeadActivity[]
+  clients      Client[]
+  clientNotes  ClientNote[]
+  teamMemberships ProjectTeamMember[]
+  projectCommunications ProjectCommunication[] @relation("ProjectCommunicationToUser")
+  userIntegration UserIntegration?
+  activities   Activity[] @relation("UserActivities")
+  assignedCampaigns MarketingCampaign[] @relation("AssignedCampaigns")
+  assignedMessages AdMessage[] @relation("AssignedMessages")
+  roles        Role[]
+  communications Communication[] @relation("UserCommunications")
+}
+
+enum UserRole {
+  admin
+  client
+  team_member
+}
+
+model Organization {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  logo          String?
+  branding      Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  stripeCustomerId String? @unique
+  stripeConnectedAccountId String? @unique
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
+  subscriptionPlan SubscriptionPlan @default(BASIC)
+  subscriptionPriceId String?
+  subscriptionEndsAt DateTime?
+
+  users    User[]
+  projects Project[]
+  invoices Invoice[]
+  payments Payment[]
+  subscriptions Subscription[]
+}
+
+model Project {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  status         String   @default("active")
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  designs      Design[]
+  files        File[]
+  teamMembers  ProjectTeamMember[]
+  communications ProjectCommunication[]
+  designVersions DesignVersion[]
+  qualityCheckpoints QualityControlCheckpoint[]
+  projectFiles ProjectFile[]
+  warranties Warranty[]
+  clientProjects Client[] @relation("ClientProjects")
+  customerProjects Customer[] @relation("CustomerProjects")
+}
+
+model Design {
+  id            String       @id @default(cuid())
+  title         String
+  description   String?
+  status        DesignStatus @default(PENDING)
+  version       Int          @default(1)
+  projectId     String
+  submittedById String
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  project     Project     @relation(fields: [projectId], references: [id])
+  submittedBy User       @relation("SubmittedDesigns", fields: [submittedById], references: [id])
+  images      Image[]
+  comments    Comment[]
+  approvals   Approval[]
+}
+
+enum DesignStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+model Image {
+  id        String   @id @default(cuid())
+  url       String
+  caption   String?
+  designId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  design Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  designId  String
+  userId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  design Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Approval {
+  id        String        @id @default(cuid())
+  status    ApprovalState
+  comment   String?
+  designId  String
+  userId    String
+  createdAt DateTime      @default(now())
+
+  design Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+}
+
+enum ApprovalState {
+  approved
+  rejected
+}
+
+model File {
+  id          String   @id @default(cuid())
+  name        String
+  url         String
+  size        Int
+  type        String
+  projectId   String
+  uploadedBy  String
+  isArchived  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
 model Lead {
   id                    String                @id @default(cuid())
   createdAt             DateTime              @default(now())
@@ -43,6 +231,8 @@ model Lead {
   assignedTo            User?                 @relation("AssignedLeads", fields: [assignedToId], references: [id])
   convertedTo           Client?               @relation(fields: [convertedToId], references: [id])
   activities            LeadActivity[]
+  assignedClient        Client?               @relation("AssignedLeads", fields: [assignedClientId], references: [id])
+  assignedClientId      String?
 
   @@index([status])
   @@index([assignedToId])
@@ -70,68 +260,6 @@ model LeadActivity {
   @@index([userId])
 }
 
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  mfaEnabled    Boolean   @default(false)
-  mfaSecret     String?
-  mfaBackupCodes String[]
-  role          Role      @relation(fields: [roleId], references: [id])
-  roleId        String
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-
-  // Activity relations
-  activities      LeadActivity[]
-  userActivities  Activity[]      @relation("UserActivities")
-
-  // Project relations
-  projectTasks    ProjectTask[]
-  projectTeam     ProjectTeamMember[]
-  projectComms    ProjectCommunication[] @relation("ProjectCommunicationToUser")
-
-  // Lead and Deal relations
-  assignedLeads   Lead[]    @relation("AssignedLeads")
-  deals           Deal[]
-  dealActivities  DealActivity[]
-
-  // Client relations
-  clients         Client[]
-  clientNotes     ClientNote[]
-  communications  Communication[]
-
-  // Financial relations
-  commissions     Commission[]
-  payments        CommissionPayment[]
-
-  // Document relations
-  documents       Document[]
-
-  // Installation relations
-  installationJobs InstallationSchedule[] @relation("InstallationScheduleToUser")
-
-  // Task relations
-  tasks           Task[]
-
-  // Marketing relations
-  assignedCampaigns Campaign[]
-  assignedMessages  Message[]
-  assignedMarketingCampaigns MarketingCampaign[] @relation("AssignedCampaigns")
-  assignedAdMessages AdMessage[] @relation("AssignedMessages")
-
-  // Integration relations
-  integration     UserIntegration?
-
-  @@index([email])
-  @@index([role])
-}
-
 model Client {
   id               String           @id @default(cuid())
   createdAt        DateTime         @default(now())
@@ -156,8 +284,14 @@ model Client {
   user             User             @relation(fields: [userId], references: [id])
   clientNotes      ClientNote[]
   lead             Lead?
-  projects         Project[]
+  projects         Project[]        @relation("ClientProjects")
   communications   Communication[]
+  stripeCustomerId String? @unique
+  invoices         Invoice[]
+  payments         Payment[]
+  teamMemberships  ProjectTeamMember[]
+  assignedLeads    Lead[]           @relation("AssignedLeads")
+  assignedMessages AdMessage[]     @relation("AssignedMessages")
 
   @@index([userId])
   @@index([status])
@@ -179,491 +313,6 @@ model ClientNote {
   @@index([userId])
 }
 
-model Project {
-  id                   String                 @id @default(cuid())
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  name                 String
-  description          String?
-  status               ProjectStatus          @default(PENDING)
-  budget               Float?
-  startDate            DateTime?
-  endDate              DateTime?
-  actualCost           Float?
-  clientId             String
-  margin               Float?
-  progress             Float?
-  commissions          Commission[]
-  deal                 Deal?
-  expenses             Expense[]
-  installationSchedule InstallationSchedule?
-  materials            Material[]
-  milestones           Milestone[]
-  productionSchedule   ProductionSchedule?
-  client               Client                 @relation(fields: [clientId], references: [id])
-  communications       ProjectCommunication[]
-  projectIssues        ProjectIssue[]
-  projectMilestones    ProjectMilestone[]
-  projectTasks         ProjectTask[]
-  team                 ProjectTeamMember[]
-  specifications       SignageSpecification[]
-  tasks                Task[]
-  documents            Document[]             @relation("DocumentToProject")
-  designVersions       DesignVersion[]
-  qualityControlCheckpoints QualityControlCheckpoint[]
-  files                ProjectFile[]
-
-  // Customer Management
-  customer    Customer? @relation(fields: [customerId], references: [id])
-  customerId  String?
-  warranties  Warranty[]
-
-  @@index([status])
-  @@index([clientId])
-  @@index([createdAt, status])
-}
-
-model Material {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  name      String
-  quantity  Int
-  unit      String
-  cost      Float
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-}
-
-model Deal {
-  id                      String         @id @default(cuid())
-  createdAt              DateTime       @default(now())
-  updatedAt              DateTime       @updatedAt
-  name                   String
-  value                  Float
-  closeProbability       Float          @default(0)
-  expectedCloseDate      DateTime?
-  stage                  DealStage      @default(INITIAL_CONTACT)
-  proposedAmount         Float?
-  negotiatedAmount       Float?
-  finalAmount            Float?
-  currency               String         @default("USD")
-  paymentTerms           String?
-  designRequirements     String?
-  siteLocation          String?
-  installationNotes      String?
-  permitRequired         Boolean        @default(false)
-  permitNumber          String?
-  permitStatus          String?
-  permitSubmissionDate   DateTime?
-  permitApprovalDate    DateTime?
-  proposalSentDate      DateTime?
-  contractSentDate      DateTime?
-  contractSignedDate    DateTime?
-  estimatedStartDate    DateTime?
-  estimatedCompletionDate DateTime?
-  customFields          Json?
-  leadId               String
-  assignedToId         String
-  projectId            String?        @unique
-  lead                 Lead          @relation(fields: [leadId], references: [id])
-  assignedTo           User          @relation(fields: [assignedToId], references: [id])
-  project              Project?      @relation(fields: [projectId], references: [id])
-  activities           DealActivity[]
-  documents            Document[]     @relation("DealToDocument")
-  proposals            Proposal[]
-
-  @@index([leadId])
-  @@index([assignedToId])
-  @@index([stage])
-}
-
-model DealActivity {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  type        String
-  title       String
-  description String?
-  scheduledAt DateTime?
-  completedAt DateTime?
-  dealId      String
-  userId      String
-  deal        Deal      @relation(fields: [dealId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id])
-
-  @@index([dealId])
-  @@index([userId])
-}
-
-model Commission {
-  id         String         @id @default(cuid())
-  userId     String
-  projectId  String
-  amount     Float
-  type       CommissionType
-  percentage Float
-  status     PaymentStatus  @default(PENDING)
-  paidAt     DateTime?
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
-  project    Project        @relation(fields: [projectId], references: [id])
-  user       User           @relation(fields: [userId], references: [id])
-}
-
-model CommissionPayment {
-  id        String   @id @default(cuid())
-  userId    String
-  amount    Float
-  paidAt    DateTime
-  year      Int
-  month     Int
-  notes     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  user      User     @relation(fields: [userId], references: [id])
-}
-
-model Campaign {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  platform    MarketingPlatform
-  type        MarketingType
-  status      CampaignStatus
-  budget      Float
-  startDate   DateTime
-  endDate     DateTime?
-  metrics     CampaignMetrics?
-  messages    Message[]
-  participants CampaignParticipant[]
-  assignedToId String?
-  assignedTo   User?     @relation(fields: [assignedToId], references: [id])
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  @@index([platform])
-  @@index([status])
-  @@index([type])
-  @@index([assignedToId])
-}
-
-model CampaignMetrics {
-  id           String   @id @default(cuid())
-  campaign     Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  campaignId   String   @unique
-  impressions  Int      @default(0)
-  clicks       Int      @default(0)
-  conversions  Int      @default(0)
-  spend        Float    @default(0)
-  revenue      Float    @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  @@index([campaignId])
-}
-
-model Message {
-  id          String      @id @default(cuid())
-  senderName  String
-  senderEmail String
-  content     String      @db.Text
-  platform    MarketingPlatform
-  status      MessageStatus
-  response    String?     @db.Text
-  campaign    Campaign?   @relation(fields: [campaignId], references: [id])
-  campaignId  String?
-  assignedToId String?
-  assignedTo   User?      @relation(fields: [assignedToId], references: [id])
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@index([platform])
-  @@index([status])
-  @@index([campaignId])
-  @@index([assignedToId])
-}
-
-model CampaignParticipant {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  campaignId String
-  leadId     String
-  status     String
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
-  lead       Lead     @relation(fields: [leadId], references: [id])
-
-  @@unique([campaignId, leadId])
-}
-
-model ProjectMilestone {
-  id            String    @id @default(cuid())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  name          String
-  description   String?
-  dueDate       DateTime
-  completedDate DateTime?
-  status        String
-  projectId     String
-  project       Project   @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-}
-
-model ProjectTask {
-  id            String    @id @default(cuid())
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  title         String
-  description   String?
-  priority      String
-  status        String
-  dueDate       DateTime?
-  completedDate DateTime?
-  assignedToId  String
-  projectId     String
-  assignedTo    User      @relation(fields: [assignedToId], references: [id])
-  project       Project   @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-  @@index([assignedToId])
-}
-
-model ProjectIssue {
-  id           String    @id @default(cuid())
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  title        String
-  description  String
-  priority     String
-  status       String
-  reportedDate DateTime  @default(now())
-  resolvedDate DateTime?
-  projectId    String
-  project      Project   @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-}
-
-model Document {
-  id             String                 @id @default(cuid())
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
-  name           String          @db.VarChar(255)
-  type           String
-  url            String          @db.VarChar(2048)
-  size           Int?
-  uploadedById   String
-  uploadedBy     User                   @relation(fields: [uploadedById], references: [id])
-  deals          Deal[]                 @relation("DealToDocument")
-  expenses       Expense[]              @relation("DocumentToExpense")
-  projects       Project[]              @relation("DocumentToProject")
-  communications ProjectCommunication[] @relation("DocumentToProjectCommunication")
-
-  @@index([type, uploadedById])
-}
-
-model SignageSpecification {
-  id               String           @id @default(cuid())
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  
-  // Basic Specifications
-  type             SignageType
-  name             String
-  description      String?          @db.Text
-  
-  // Dimensions
-  width            Float
-  height           Float
-  depth            Float?
-  unit             String           @default("inches")
-  weight           Float?
-  doubleSided      Boolean          @default(false)
-  
-  // Materials
-  primaryMaterial  MaterialType
-  backingMaterial  MaterialType?
-  finishType       String?
-  
-  // Printing & Production
-  printingMethod   PrintingMethod
-  resolution       String?          // e.g., "1920x1080", "P10", "P6"
-  pixelPitch       Float?           // For LED displays
-  brightness       Int?             // In nits
-  refreshRate      Int?             // In Hz
-  colorProfile     String?
-  
-  // Installation
-  installationType InstallationType
-  mountingHeight   Float?
-  mountingAngle    Float?
-  clearanceNeeded  Float?
-  
-  // Power & Electronics
-  powerRequired    Boolean          @default(false)
-  voltageRequired  Float?           // In volts
-  powerConsumption Float?           // In watts
-  controlSystem    String?          // e.g., "DMX", "WiFi", "RF"
-  
-  // Environmental
-  outdoorRated     Boolean          @default(false)
-  ipRating         String?          // e.g., "IP65", "IP67"
-  operatingTemp    Json?            // { min: number, max: number }
-  windLoadRating   Float?           // In mph
-  
-  // Illumination
-  illuminated      Boolean          @default(false)
-  illuminationType String?          // e.g., "Front-lit", "Back-lit", "Edge-lit"
-  colorTemperature Int?             // In Kelvin
-  
-  // Certification & Compliance
-  certifications   String[]         // e.g., ["UL", "CE", "FCC"]
-  warrantyPeriod   Int?             // In months
-  
-  // Design & Approval
-  designFiles      String[]
-  proofApproved    Boolean          @default(false)
-  proofApprovedAt  DateTime?
-  proofApprovedBy  String?
-  
-  // Maintenance
-  maintenanceInterval Int?          // In months
-  cleaningInstructions String?      @db.Text
-  replacementParts    Json?         // Array of required replacement parts
-  
-  // Relationships
-  projectId        String
-  project          Project          @relation(fields: [projectId], references: [id])
-  materialInventory MaterialInventory[]
-
-  @@index([projectId])
-  @@index([type])
-  @@index([primaryMaterial])
-}
-
-model MaterialInventory {
-  id                    String               @id @default(cuid())
-  createdAt             DateTime             @default(now())
-  updatedAt             DateTime             @updatedAt
-  materialType          MaterialType
-  name                  String
-  description           String?              @db.Text
-  quantity              Float
-  unit                  String               // e.g., "sqft", "pieces", "meters"
-  minimumStock          Float
-  reorderPoint          Float
-  cost                  Float
-  supplier              String?
-  leadTime             Int?                 // In days
-  location             String?
-  specifications       SignageSpecification[] // Many-to-many relationship
-  
-  @@index([materialType])
-  @@index([quantity])
-}
-
-model ProductionSchedule {
-  id               String   @id @default(cuid())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  startDate        DateTime
-  endDate          DateTime
-  status           String
-  designStage      Json?
-  printingStage    Json?
-  fabricationStage Json?
-  assemblyStage    Json?
-  assignedMachine  String?
-  materialStatus   String?
-  projectId        String   @unique
-  project          Project  @relation(fields: [projectId], references: [id])
-
-  @@index([projectId])
-}
-
-model InstallationSchedule {
-  id                 String   @id @default(cuid())
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
-  scheduledDate      DateTime
-  estimatedDuration  Int
-  status             String
-  siteAddress        String
-  siteContact        String?
-  sitePhone          String?
-  accessInstructions String?
-  equipmentNeeded    String[]
-  crewSize           Int      @default(2)
-  permitRequired     Boolean  @default(false)
-  permitNumber       String?
-  projectId          String   @unique
-  project            Project  @relation(fields: [projectId], references: [id])
-  installers         User[]   @relation("InstallationScheduleToUser")
-
-  @@index([projectId])
-}
-
-model Task {
-  id           String       @id @default(cuid())
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  title        String
-  description  String?         @db.VarChar(1000)
-  status       TaskStatus   @default(PENDING)
-  priority     TaskPriority @default(MEDIUM)
-  startDate    DateTime?
-  dueDate      DateTime?
-  completedAt  DateTime?
-  projectId    String
-  assignedToId String?
-  assignedTo   User?        @relation(fields: [assignedToId], references: [id])
-  project      Project      @relation(fields: [projectId], references: [id])
-  Task_A       Task[]       @relation("TaskDependencies")
-  Task_B       Task[]       @relation("TaskDependencies")
-
-  @@index([status])
-  @@index([projectId])
-  @@index([assignedToId])
-  @@index([status, dueDate])
-  @@index([assignedToId, status])
-}
-
-model Milestone {
-  id          String          @id @default(cuid())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  title       String
-  description String?
-  status      MilestoneStatus @default(PENDING)
-  dueDate     DateTime
-  completedAt DateTime?
-  projectId   String
-  project     Project         @relation(fields: [projectId], references: [id])
-
-  @@index([status])
-  @@index([projectId])
-}
-
-model Expense {
-  id          String          @id @default(cuid())
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  amount      Float
-  description String?
-  category    ExpenseCategory
-  date        DateTime
-  projectId   String
-  project     Project         @relation(fields: [projectId], references: [id])
-  attachments Document[]      @relation("DocumentToExpense")
-
-  @@index([projectId])
-  @@index([category])
-}
-
 model ProjectTeamMember {
   id        String    @id @default(cuid())
   createdAt DateTime  @default(now())
@@ -675,6 +324,8 @@ model ProjectTeamMember {
   userId    String
   project   Project   @relation(fields: [projectId], references: [id])
   user      User      @relation(fields: [userId], references: [id])
+  client    Client?   @relation(fields: [clientId], references: [id])
+  clientId  String?
 
   @@unique([projectId, userId])
   @@index([projectId])
@@ -781,13 +432,12 @@ model Communication {
   sentAt      DateTime?
   clientId    String
   userId      String
-  client      Client            @relation(fields: [clientId], references: [id])
-  user        User              @relation(fields: [userId], references: [id])
 
-  // Customer Management
-  customer    Customer? @relation(fields: [customerId], references: [id])
+  client      Client            @relation(fields: [clientId], references: [id])
+  user        User              @relation("UserCommunications", fields: [userId], references: [id])
+  customer    Customer?         @relation(fields: [customerId], references: [id])
   customerId  String?
-  contact     Contact?  @relation(fields: [contactId], references: [id])
+  contact     Contact?          @relation(fields: [contactId], references: [id])
   contactId   String?
 
   @@index([type, status, createdAt])
@@ -990,32 +640,11 @@ enum ExpenseCategory {
   OTHER
 }
 
-enum UserRole {
-  ADMIN
-  USER
-  MANAGER
-  SALES_REP
-  MARKETING
-  DESIGNER
-  INSTALLER
-  SUPPORT
-  TEAM_LEADER
-  ACCOUNTANT
-}
-
 enum CampaignStatus {
   DRAFT
   ACTIVE
   PAUSED
   COMPLETED
-  ARCHIVED
-}
-
-enum DesignStatus {
-  DRAFT
-  IN_REVIEW
-  APPROVED
-  REJECTED
   ARCHIVED
 }
 
@@ -1082,12 +711,15 @@ model Customer {
   status                 String         @default("ACTIVE")
   customFields           Json?
   contacts               Contact[]
-  projects               Project[]
+  projects               Project[]      @relation("CustomerProjects")
   warranties             Warranty[]
   proposals              Proposal[]
   reviews                Review[]
   followUps              FollowUp[]
   communications         Communication[]
+  stripeCustomerId       String?        @unique
+  invoices               Invoice[]
+  payments               Payment[]
 
   @@index([status])
 }
@@ -1335,6 +967,8 @@ model AdMessage {
   response         String?         @db.Text
   respondedAt      DateTime?
   metadata         Json?           // Additional platform-specific data
+  client           Client?         @relation("AssignedMessages", fields: [clientId], references: [id])
+  clientId         String?
 
   @@index([campaignId])
   @@index([status])
@@ -1435,4 +1069,140 @@ model PerformanceMetric {
 
   @@index([timestamp])
   @@index([path])
+}
+
+model Invoice {
+  id              String        @id @default(cuid())
+  organizationId  String
+  customerId      String?
+  amount          Float
+  currency        String        @default("usd")
+  status          InvoiceStatus @default(DRAFT)
+  dueDate         DateTime?
+  paidAt          DateTime?
+  stripeInvoiceId String?      @unique
+  stripePaymentIntentId String? @unique
+  items           InvoiceItem[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  customer        Customer?     @relation(fields: [customerId], references: [id])
+  client          Client?       @relation(fields: [clientId], references: [id])
+  clientId        String?
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int
+  unitPrice   Float
+  amount      Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                    String        @id @default(cuid())
+  organizationId        String
+  customerId           String?
+  amount               Float
+  currency             String        @default("usd")
+  status               PaymentStatus
+  stripePaymentIntentId String?      @unique
+  stripeChargeId       String?       @unique
+  paymentMethod        PaymentMethod @default(CARD)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  organization         Organization  @relation(fields: [organizationId], references: [id])
+  customer             Customer?     @relation(fields: [customerId], references: [id])
+  client              Client?       @relation(fields: [clientId], references: [id])
+  clientId            String?
+}
+
+model Subscription {
+  id                String             @id @default(cuid())
+  organizationId    String             @unique
+  status            SubscriptionStatus
+  plan              SubscriptionPlan
+  stripeSubscriptionId String?        @unique
+  stripePriceId     String?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean          @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization      Organization      @relation(fields: [organizationId], references: [id])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  UNPAID
+}
+
+enum SubscriptionPlan {
+  BASIC
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  OPEN
+  PAID
+  VOID
+  UNCOLLECTIBLE
+}
+
+enum PaymentMethod {
+  CARD
+  BANK_TRANSFER
+  CASH
+  CHECK
+  OTHER
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  name        String
+  url         String
+  type        String
+  size        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  communications ProjectCommunication[] @relation("DocumentToProjectCommunication")
+}
+
+model Deal {
+  id          String   @id @default(cuid())
+  name        String
+  value       Float
+  stage       DealStage
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  proposals   Proposal[]
+  leads       Lead[]
+}
+
+model CampaignParticipant {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  leadId      String
+
+  @@index([leadId])
 }

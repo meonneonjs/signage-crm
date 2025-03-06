@@ -15,93 +15,92 @@ import {
 } from 'lucide-react';
 import { DashboardPermissions, Permission } from '@/types/roles';
 
-interface NavigationItem {
+export interface NavigationItem {
   name: string;
   href: string;
   icon: any;
-  permission?: {
-    section: keyof DashboardPermissions;
-    action: keyof Permission;
+  permission: {
+    section: string;
+    action: string;
   };
-  items?: NavigationItem[];
 }
 
 export const navigation: NavigationItem[] = [
   { 
     name: 'Dashboard',
-    href: '/dashboard',
+    href: '/crm',
     icon: LayoutDashboard,
     permission: { section: 'dashboards', action: 'view' },
   },
   {
     name: 'Clients',
-    href: '/dashboard/clients',
+    href: '/crm/clients',
     icon: Users,
     permission: { section: 'clients', action: 'view' },
   },
   {
     name: 'Projects',
-    href: '/dashboard/projects',
+    href: '/crm/projects',
     icon: Briefcase,
     permission: { section: 'projects', action: 'view' },
   },
   {
     name: 'Production',
-    href: '/dashboard/production',
+    href: '/crm/production',
     icon: Factory,
     permission: { section: 'production', action: 'view' },
   },
   {
     name: 'Design Studio',
-    href: '/dashboard/design',
+    href: '/crm/design',
     icon: Palette,
     permission: { section: 'design', action: 'view' },
   },
   {
     name: 'Team',
-    href: '/dashboard/team',
+    href: '/crm/team',
     icon: UserCircle2,
     permission: { section: 'team', action: 'view' },
   },
   {
     name: 'Finance',
-    href: '/dashboard/finance',
+    href: '/crm/finance',
     icon: Wallet,
     permission: { section: 'billing', action: 'view' },
   },
   {
     name: 'Analytics',
-    href: '/dashboard/analytics',
+    href: '/crm/analytics',
     icon: BarChart3,
     permission: { section: 'analytics', action: 'view' },
   },
   {
     name: 'Communication',
-    href: '/dashboard/communication',
+    href: '/crm/communication',
     icon: MessageSquare,
     permission: { section: 'messages', action: 'view' },
   },
   {
     name: 'Resources',
-    href: '/dashboard/resources',
+    href: '/crm/resources',
     icon: BookOpen,
     permission: { section: 'assets', action: 'view' },
   },
   {
     name: 'Calendar',
-    href: '/dashboard/calendar',
+    href: '/crm/calendar',
     icon: Calendar,
     permission: { section: 'calendar', action: 'view' },
   },
   {
     name: 'Settings',
-    href: '/dashboard/settings',
+    href: '/crm/settings',
     icon: Settings,
     permission: { section: 'settings', action: 'view' },
   },
   {
     name: 'Atelier Connect',
-    href: '/dashboard/connect',
+    href: '/crm/connect',
     icon: MessagesSquare,
     permission: { section: 'messages', action: 'view' },
   },
